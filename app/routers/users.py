@@ -1,15 +1,11 @@
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-# New endpoint for advanced user filtering
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
 
 from app.schemas import schemas
 from app.services import user_service
 from app.utils.database import get_db
-from builtins import anext  # Add this import for anext
 
 router = APIRouter(prefix="/users", tags=["users"])
 

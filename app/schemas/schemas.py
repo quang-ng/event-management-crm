@@ -39,6 +39,15 @@ class UserCreate(UserBase):
 
 class User(UserBase):
     id: int
+    company: Optional[str] = None
+    job_title: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    events_hosted: Optional[int] = None
+    events_attended: Optional[int] = None
+    phone_number: Optional[str] = None
+    avatar: Optional[str] = None
+    gender: Optional[str] = None
     class Config:
         orm_mode = True
 

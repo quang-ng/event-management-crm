@@ -17,6 +17,66 @@ USER_SORTABLE_FIELDS = {
 }
 
 
+def _validate_filter_users_inputs(limit: int, sort_by: Optional[str], sort_order: str, cursor: Optional[str]):
+    if limit < 1 or limit > 200:
+        raise HTTPException(status_code=400, detail="Limit must be between 1 and 200.")
+    if sort_by and sort_by not in USER_SORTABLE_FIELDS:
+        raise HTTPException(status_code=400, detail=f"Invalid sort_by field: {sort_by}")
+    if sort_order not in {"asc", "desc"}:
+        raise HTTPException(
+            status_code=400, detail="sort_order must be 'asc' or 'desc'."
+        )
+    try:
+        if cursor is not None:
+            cursor_val = int(cursor)
+            if cursor_val < 0:
+                raise ValueError
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="Invalid cursor value.")
+
+
+def _build_filter_expression(filters: Dict[str, Any]):
+    from functools import reduce
+    conditions = []
+    for key, value in filters.items():
+        if value is not None:
+            if isinstance(value, tuple):
+                min_val, max_val = value
+                if min_val is not None:
+                    conditions.append(Attr(key).gte(min_val))
+                if max_val is not None:
+                    conditions.append(Attr(key).lte(max_val))
+            else:
+                conditions.append(Attr(key).eq(value))
+    if not conditions:
+        return None
+    return reduce(lambda a, b: a & b, conditions)
+
+
+def _get_gsi_query_kwargs(company, job_title, sort_by, sort_order, limit, cursor):
+    if company and sort_by == "job_title":
+        kwargs = {
+            "IndexName": "company-job_title-index",
+            "KeyConditionExpression": Key("company").eq(company),
+            "ScanIndexForward": (sort_order == "asc"),
+            "Limit": limit + 1,
+        }
+        if cursor:
+            kwargs["ExclusiveStartKey"] = {"company": company, "job_title": cursor}
+        return kwargs, "job_title"
+    elif job_title and sort_by == "company":
+        kwargs = {
+            "IndexName": "job_title-company-index",
+            "KeyConditionExpression": Key("job_title").eq(job_title),
+            "ScanIndexForward": (sort_order == "asc"),
+            "Limit": limit + 1,
+        }
+        if cursor:
+            kwargs["ExclusiveStartKey"] = {"job_title": job_title, "company": cursor}
+        return kwargs, "company"
+    return None, None
+
+
 async def filter_users(
     db,
     company: Optional[str] = None,
@@ -37,132 +97,35 @@ async def filter_users(
     Uses GSIs for efficient company/job_title sorting.
     Raises HTTPException for invalid input.
     """
-    # --- Input Validation ---
-    if limit < 1 or limit > 200:
-        raise HTTPException(status_code=400, detail="Limit must be between 1 and 200.")
-    if sort_by and sort_by not in USER_SORTABLE_FIELDS:
-        raise HTTPException(status_code=400, detail=f"Invalid sort_by field: {sort_by}")
-    if sort_order not in {"asc", "desc"}:
-        raise HTTPException(
-            status_code=400, detail="sort_order must be 'asc' or 'desc'."
-        )
-    try:
-        if cursor is not None:
-            cursor_val = int(cursor)
-            if cursor_val < 0:
-                raise ValueError
-    except (ValueError, TypeError):
-        raise HTTPException(status_code=400, detail="Invalid cursor value.")
-    table = db.Table("users")
-    items = []
-    last_evaluated_key = None
-    # --- Use GSI for efficient query if possible ---
-    if company and sort_by == "job_title":
-        # Query using company-job_title-index
-        query_kwargs = {
-            "IndexName": "company-job_title-index",
-            "KeyConditionExpression": Key("company").eq(company),
-            "ScanIndexForward": (sort_order == "asc"),
-            "Limit": limit + 1,
-        }
-        if cursor:
-            query_kwargs["ExclusiveStartKey"] = {
-                "company": company,
-                "job_title": cursor,
-            }
+    _validate_filter_users_inputs(limit, sort_by, sort_order, cursor)
+    table = await db.Table("users")
+
+    # Try GSI query if possible
+    gsi_kwargs, gsi_cursor_field = _get_gsi_query_kwargs(company, job_title, sort_by, sort_order, limit, cursor)
+    if gsi_kwargs:
         try:
-            response = await table.query(**query_kwargs)
+            response = await table.query(**gsi_kwargs)
         except Exception as e:
-            raise HTTPException(
-                status_code=500, detail=f"DynamoDB query error: {str(e)}"
-            )
-        items = response.get("Items", [])
-        last_evaluated_key = response.get("LastEvaluatedKey")
-    elif job_title and sort_by == "company":
-        # Query using job_title-company-index
-        query_kwargs = {
-            "IndexName": "job_title-company-index",
-            "KeyConditionExpression": Key("job_title").eq(job_title),
-            "ScanIndexForward": (sort_order == "asc"),
-            "Limit": limit + 1,
-        }
-        if cursor:
-            query_kwargs["ExclusiveStartKey"] = {
-                "job_title": job_title,
-                "company": cursor,
-            }
-        try:
-            response = await table.query(**query_kwargs)
-        except Exception as e:
-            raise HTTPException(
-                status_code=500, detail=f"DynamoDB query error: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"DynamoDB query error: {str(e)}")
         items = response.get("Items", [])
         last_evaluated_key = response.get("LastEvaluatedKey")
     else:
-        # --- Fallback: Scan with filters and in-memory sort ---
-        filter_expression = None
-        if company:
-            filter_expression = (
-                Attr("company").eq(company)
-                if not filter_expression
-                else filter_expression & Attr("company").eq(company)
-            )
-        if job_title:
-            filter_expression = (
-                Attr("job_title").eq(job_title)
-                if not filter_expression
-                else filter_expression & Attr("job_title").eq(job_title)
-            )
-        if city:
-            filter_expression = (
-                Attr("city").eq(city)
-                if not filter_expression
-                else filter_expression & Attr("city").eq(city)
-            )
-        if state:
-            filter_expression = (
-                Attr("state").eq(state)
-                if not filter_expression
-                else filter_expression & Attr("state").eq(state)
-            )
-        if events_hosted_min is not None:
-            filter_expression = (
-                Attr("events_hosted").gte(events_hosted_min)
-                if not filter_expression
-                else filter_expression & Attr("events_hosted").gte(events_hosted_min)
-            )
-        if events_hosted_max is not None:
-            filter_expression = (
-                Attr("events_hosted").lte(events_hosted_max)
-                if not filter_expression
-                else filter_expression & Attr("events_hosted").lte(events_hosted_max)
-            )
-        if events_attended_min is not None:
-            filter_expression = (
-                Attr("events_attended").gte(events_attended_min)
-                if not filter_expression
-                else filter_expression
-                & Attr("events_attended").gte(events_attended_min)
-            )
-        if events_attended_max is not None:
-            filter_expression = (
-                Attr("events_attended").lte(events_attended_max)
-                if not filter_expression
-                else filter_expression
-                & Attr("events_attended").lte(events_attended_max)
-            )
+        # Build filter expression
+        filters = {
+            "company": company,
+            "job_title": job_title,
+            "city": city,
+            "state": state,
+            "events_hosted": (events_hosted_min, events_hosted_max),
+            "events_attended": (events_attended_min, events_attended_max),
+        }
+        filter_expression = _build_filter_expression(filters)
         scan_kwargs = {"Limit": limit + 1}
         if filter_expression is not None:
             scan_kwargs["FilterExpression"] = filter_expression
         if cursor:
             scan_kwargs["ExclusiveStartKey"] = {"id": int(cursor)}
-        # try:
         response = await table.scan(**scan_kwargs)
-        # except Exception as e:
-        #     raise HTTPException(
-        #         status_code=500, detail=f"DynamoDB scan error: {str(e)}"
-        #     )
         items = response.get("Items", [])
         last_evaluated_key = response.get("LastEvaluatedKey")
         # In-memory sort if requested
@@ -173,16 +136,15 @@ async def filter_users(
                 )
             except Exception:
                 raise HTTPException(status_code=500, detail="Error sorting results.")
-    # --- Pagination ---
+
+    # Pagination
     next_cursor = None
     if last_evaluated_key:
-        # For GSI queries, use the sort key as the cursor
-        if company and sort_by == "job_title" and last_evaluated_key.get("job_title"):
-            next_cursor = last_evaluated_key["job_title"]
-        elif job_title and sort_by == "company" and last_evaluated_key.get("company"):
-            next_cursor = last_evaluated_key["company"]
+        if gsi_cursor_field and last_evaluated_key.get(gsi_cursor_field):
+            next_cursor = last_evaluated_key[gsi_cursor_field]
         elif last_evaluated_key.get("id"):
             next_cursor = str(last_evaluated_key["id"])
+
     results = items[:limit]
     return {
         "limit": limit,
