@@ -77,6 +77,32 @@ def _get_gsi_query_kwargs(company, job_title, sort_by, sort_order, limit, cursor
     return None, None
 
 
+async def _parallel_scan(table, scan_kwargs, total_segments=4):
+    """
+    Perform a parallel scan on a DynamoDB table using multiple segments for large datasets.
+    """
+    import asyncio
+    from copy import deepcopy
+
+    async def scan_segment(segment):
+        segment_kwargs = deepcopy(scan_kwargs)
+        segment_kwargs["Segment"] = segment
+        segment_kwargs["TotalSegments"] = total_segments
+        return await table.scan(**segment_kwargs)
+
+    results = await asyncio.gather(
+        *[scan_segment(segment) for segment in range(total_segments)]
+    )
+    items = []
+    last_evaluated_keys = []
+    for result in results:
+        items.extend(result.get("Items", []))
+        lek = result.get("LastEvaluatedKey")
+        if lek:
+            last_evaluated_keys.append(lek)
+    return items, last_evaluated_keys
+
+
 async def filter_users(
     db,
     company: Optional[str] = None,
@@ -95,6 +121,7 @@ async def filter_users(
     """
     Filter users from DynamoDB with async scan or query, in-memory sort if needed, and pagination.
     Uses GSIs for efficient company/job_title sorting.
+    For large scans, uses parallel scan for better performance.
     Raises HTTPException for invalid input.
     """
     _validate_filter_users_inputs(limit, sort_by, sort_order, cursor)
@@ -125,9 +152,21 @@ async def filter_users(
             scan_kwargs["FilterExpression"] = filter_expression
         if cursor:
             scan_kwargs["ExclusiveStartKey"] = {"id": int(cursor)}
-        response = await table.scan(**scan_kwargs)
-        items = response.get("Items", [])
-        last_evaluated_key = response.get("LastEvaluatedKey")
+
+        # Heuristic: Use parallel scan if no filters or only non-indexed filters (likely large scan)
+        use_parallel_scan = filter_expression is None or (
+            not company and not job_title and not city and not state
+        )
+        if use_parallel_scan:
+            try:
+                items, last_evaluated_keys = await _parallel_scan(table, scan_kwargs, total_segments=4)
+                last_evaluated_key = last_evaluated_keys[0] if last_evaluated_keys else None
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"DynamoDB parallel scan error: {str(e)}")
+        else:
+            response = await table.scan(**scan_kwargs)
+            items = response.get("Items", [])
+            last_evaluated_key = response.get("LastEvaluatedKey")
         # In-memory sort if requested
         if sort_by:
             try:
