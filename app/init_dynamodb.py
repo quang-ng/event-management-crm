@@ -1,15 +1,16 @@
+import os
 import time
 
 import boto3
 
-# DynamoDB Local endpoint and region
-DYNAMODB_ENDPOINT = "http://dynamodb:8000"
-REGION = "us-west-2"
+
+DYNAMODB_ENDPOINT_URL = os.getenv("DYNAMODB_ENDPOINT_URL", None)
+DYNAMODB_REGION = os.getenv("DYNAMODB_REGION", "us-east-1")
 
 dynamodb = boto3.resource(
     'dynamodb',
-    endpoint_url=DYNAMODB_ENDPOINT,
-    region_name=REGION,
+    endpoint_url=DYNAMODB_ENDPOINT_URL,
+    region_name=DYNAMODB_REGION,
     aws_access_key_id='dummy',
     aws_secret_access_key='dummy'
 )
@@ -40,8 +41,7 @@ def seed_data():
     table = dynamodb.Table('users')
     # Example seed data
     users = [
-        {'user_id': '1', 'name': 'Alice', 'email': 'alice@example.com'},
-        {'user_id': '2', 'name': 'Bob', 'email': 'bob@example.com'},
+        
     ]
     for user in users:
         table.put_item(Item=user)

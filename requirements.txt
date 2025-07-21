@@ -4,4 +4,4 @@ sqlalchemy
 pydantic
 email-validator
 dotenv
-boto3
+aioboto3>=12.0.0

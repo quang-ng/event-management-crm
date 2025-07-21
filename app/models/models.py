@@ -24,6 +24,8 @@ class User(Base):
     city = Column(String, nullable=True)
     state = Column(String, nullable=True)
     role = Column(Enum(UserRole), default=UserRole.attendee)
+    events_hosted = Column(Integer, default=0)
+    events_attended = Column(Integer, default=0)
     events_participated = relationship("EventRegistration", back_populates="user")
     events_owned = relationship("Event", back_populates="owner", foreign_keys='Event.owner_id')
     events_hosting = relationship(

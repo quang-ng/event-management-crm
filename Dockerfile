@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Install only security updates and required system packages
 RUN apt-get update && \
-    apt-get install --no-install-recommends -y gcc && \
+    apt-get install --no-install-recommends -y gcc libc6-dev && \
     rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt ./
