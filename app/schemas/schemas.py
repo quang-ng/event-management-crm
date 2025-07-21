@@ -23,10 +23,16 @@ class Event(EventBase):
     class Config:
         orm_mode = True
 
+
 class UserBase(BaseModel):
     email: EmailStr
-    name: str
+    first_name: str
+    last_name: str
     role: UserRole
+
+    @property
+    def name(self) -> str:
+        return f"{self.first_name} {self.last_name}"
 
 class UserCreate(UserBase):
     pass

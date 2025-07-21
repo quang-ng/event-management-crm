@@ -14,7 +14,7 @@ services:
       - AWS_ACCESS_KEY_ID=dummy
       - AWS_SECRET_ACCESS_KEY=dummy
       - AWS_DEFAULT_REGION=us-west-2
-      - DYNAMODB_ENDPOINT=http://dynamodb:8000
+      - DYNAMODB_ENDPOINT_URL=http://dynamodb:8000
 
   dynamodb:
     image: amazon/dynamodb-local:latest

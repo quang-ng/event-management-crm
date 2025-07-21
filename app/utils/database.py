@@ -1,19 +1,19 @@
-# Database session and engine setup
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+# DynamoDB connection setup
+import os
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
+import boto3
 
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+DYNAMODB_ENDPOINT_URL = os.getenv("DYNAMODB_ENDPOINT_URL", None)
+DYNAMODB_REGION = os.getenv("DYNAMODB_REGION", "us-east-1")
+
+dynamodb_resource = boto3.resource(
+    "dynamodb",
+    region_name=DYNAMODB_REGION,
+    endpoint_url=DYNAMODB_ENDPOINT_URL
 )
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
 
 def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    """
+    Yields a DynamoDB resource for database operations.
+    """
+    yield dynamodb_resource
