@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  fastapi:
+    build: .
+    container_name: fastapi_app
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app/app
+    depends_on:
+      - dynamodb
+    environment:
+      - AWS_ACCESS_KEY_ID=dummy
+      - AWS_SECRET_ACCESS_KEY=dummy
+      - AWS_DEFAULT_REGION=us-west-2
+      - DYNAMODB_ENDPOINT=http://dynamodb:8000
+
+  dynamodb:
+    image: amazon/dynamodb-local:latest
+    container_name: dynamodb_local
+    ports:
+      - "8001:8000"
+    command: -jar DynamoDBLocal.jar -inMemory -sharedDb
