@@ -68,3 +68,20 @@ class EventHost(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     event = relationship("Event", back_populates="hosts")
     user = relationship("User", back_populates="events_hosting")
+
+class EmailStatus(str, enum.Enum):
+    pending = "pending"
+    sent = "sent"
+    failed = "failed"
+
+class EmailLog(Base):
+    __tablename__ = "email_logs"
+    id = Column(Integer, primary_key=True, index=True)
+    recipient = Column(String, nullable=False)
+    subject = Column(String, nullable=False)
+    body = Column(String, nullable=False)
+    status = Column(Enum(EmailStatus), default=EmailStatus.pending)
+    error_message = Column(String, nullable=True)
+    created_at = Column(DateTime, nullable=False)
+    sent_at = Column(DateTime, nullable=True)
+    failed_at = Column(DateTime, nullable=True)

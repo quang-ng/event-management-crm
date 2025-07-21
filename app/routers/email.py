@@ -51,5 +51,5 @@ async def send_email_to_filtered_users(
     emails = [user.get("email") for user in result["results"] if user.get("email")]
     if not emails:
         return {"message": "No users found for the given criteria."}
-    send_email(background_tasks, subject, body, emails)
+    send_email(background_tasks, subject, body, emails, db)
     return {"message": f"Emails sent to {len(emails)} users."}
