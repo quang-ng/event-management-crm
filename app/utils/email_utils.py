@@ -5,15 +5,10 @@ from typing import List
 
 from fastapi import BackgroundTasks
 
+from app.utils.logger import logger
+
 
 def send_email(background_tasks: BackgroundTasks, subject: str, body: str, recipients: List[str]):
     def send():
-        # Dummy SMTP logic (replace with real credentials and server)
-        msg = MIMEText(body)
-        msg["Subject"] = subject
-        msg["From"] = "noreply@example.com"
-        msg["To"] = ", ".join(recipients)
-        # Example: with smtplib.SMTP("localhost") as server:
-        #     server.sendmail(msg["From"], recipients, msg.as_string())
-        pass
+        logger.info(f"Sending email to {", ".join(recipients)} with {subject} and {body}")
     background_tasks.add_task(send)
