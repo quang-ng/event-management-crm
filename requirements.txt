@@ -5,3 +5,5 @@ pydantic
 email-validator
 dotenv
 aioboto3>=12.0.0
+pytest
+pytest_asyncio
