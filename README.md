@@ -151,3 +151,64 @@ This project uses FastAPI, which automatically generates interactive API documen
 ![alt text](screenshoots/ReDoc.png)
 
 The documentation is always up-to-date with your code and includes request/response models, authentication, and error responses.
+
+
+## Unit Tests
+
+This project uses **pytest** and **pytest-asyncio** for unit and integration testing. Tests are located in the `app/tests/` directory and cover routers, services, and utilities.
+
+
+### Running All Tests
+
+```sh
+cd app/tests
+python run_test.py
+```
+
+### Run with Coverage Report
+
+```sh
+cd app/tests
+python run_test.py --cov
+```
+
+### Run a Specific Test File
+
+```sh
+cd app/tests
+python run_test.py test_email.py
+```
+
+### Requirements
+
+Install dependencies (if not already):
+
+```sh
+pip install -r ../../requirements.txt
+```
+
+You may also need:
+
+```sh
+pip install pytest pytest-asyncio
+```
+
+---
+
+## AI Tools & Best Practices
+
+### What AI tools do our developers use?
+- **Cursor with GPT-4.1 model of OpenAI**: For code completion, suggestions, and boilerplate generation.
+
+### How do these tools assist?
+- **Coding**: Suggest alternative implementations, and help generate repetitive code structures, speeding up development.
+- **Debugging**: Developers use AI chat assistants to explain error messages, suggest fixes, and analyze stack traces.
+- **Testing**: AI can help generate test cases, review test coverage, and suggest edge cases.
+- **Documentation**: Tools like ChatGPT help me in drafting and refining documentation, README sections, and code comments.
+
+### Best Practices for AI Tool Usage
+- **Review All AI-Generated Code**: Always review, test, and understand code suggested by AI before merging.
+- **Use AI for Ideation, Not as a Source of Truth**: Treat AI suggestions as starting points, not final answers.
+- **Maintain Security & Privacy**: Never share sensitive code, credentials, or proprietary data with external AI tools.
+- **Document AI-Assisted Changes**: Note in PRs or commit messages when significant code was generated or heavily influenced by AI.
+- **Continuous Learning**: Stay updated on AI tool capabilities and limitations to maximize productivity and code quality. 
