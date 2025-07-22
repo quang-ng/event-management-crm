@@ -1,5 +1,7 @@
 # event-management-crm
 
+[![CI](https://github.com/quang-ng/event-management-crm/actions/workflows/ci.yml/badge.svg)](https://github.com/quang-ng/employee-search-service/actions/workflows/ci.yml)
+
 ## Architecture Decisions
 
 - **Framework**: FastAPI for building RESTful APIs.
