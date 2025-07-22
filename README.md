@@ -28,6 +28,31 @@
 └── README.md                 # Project documentation
 ```
 
+## Database Models
+
+### User Model
+
+The User model includes several key fields for tracking event participation:
+
+- `events_hosted` (Integer): Automatically incremented when a user is added as an event host via `EventHost`
+- `events_attended` (Integer): Automatically incremented when a user registers for an event via `EventRegistration`
+
+#### Automatic Field Updates
+
+The `events_hosted` and `events_attended` fields are automatically maintained by the system:
+
+- **`events_hosted`**: This counter is incremented each time a new `EventHost` record is created linking the user to an event as a host
+- **`events_attended`**: This counter is incremented each time a new `EventRegistration` record is created for the user
+
+These fields provide quick access to user participation statistics without requiring complex queries across related tables.
+
+### Related Models
+
+- **Event**: Represents an event with details like title, description, venue, and capacity
+- **EventHost**: Association table linking users to events they host (many-to-many relationship)
+- **EventRegistration**: Association table linking users to events they attend (many-to-many relationship)
+- **EmailLog**: Tracks all email communications sent through the system
+
 ## API Endpoints
 
 
