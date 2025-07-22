@@ -1,6 +1,7 @@
+
 from typing import List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Query, Body
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.models import models
@@ -53,3 +54,16 @@ async def send_email_to_filtered_users(
         return {"message": "No users found for the given criteria."}
     send_email(background_tasks, subject, body, emails, db)
     return {"message": f"Emails sent to {len(emails)} users."}
+
+
+
+@router.get("/logs", summary="Get all email logs")
+async def get_email_logs(db = Depends(get_db)):
+    """
+    Retrieve all email logs from the email_logs table.
+    """
+    table = await db.Table("email_logs")
+    response = await table.scan()
+
+    items = response.get("Items", [])
+    return {"logs": items}

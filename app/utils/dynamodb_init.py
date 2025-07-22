@@ -1,16 +1,71 @@
+def create_email_logs_table():
+    try:
+        table = dynamodb.create_table(
+            TableName='email_logs',
+            KeySchema=[
+                {'AttributeName': 'id', 'KeyType': 'HASH'},
+            ],
+            AttributeDefinitions=[
+                {'AttributeName': 'id', 'AttributeType': 'S'},
+                {'AttributeName': 'recipient', 'AttributeType': 'S'},
+                {'AttributeName': 'status', 'AttributeType': 'S'},
+                {'AttributeName': 'created_at', 'AttributeType': 'S'},
+            ],
+            GlobalSecondaryIndexes=[
+                {
+                    'IndexName': 'recipient-status-index',
+                    'KeySchema': [
+                        {'AttributeName': 'recipient', 'KeyType': 'HASH'},
+                        {'AttributeName': 'status', 'KeyType': 'RANGE'},
+                    ],
+                    'Projection': {'ProjectionType': 'ALL'},
+                    'ProvisionedThroughput': {
+                        'ReadCapacityUnits': 5,
+                        'WriteCapacityUnits': 5
+                    }
+                },
+                {
+                    'IndexName': 'created_at-index',
+                    'KeySchema': [
+                        {'AttributeName': 'created_at', 'KeyType': 'HASH'},
+                    ],
+                    'Projection': {'ProjectionType': 'ALL'},
+                    'ProvisionedThroughput': {
+                        'ReadCapacityUnits': 5,
+                        'WriteCapacityUnits': 5
+                    }
+                }
+            ],
+            ProvisionedThroughput={
+                'ReadCapacityUnits': 5,
+                'WriteCapacityUnits': 5
+            }
+        )
+        table.meta.client.get_waiter('table_exists').wait(TableName='email_logs')
+        logging.info("Table 'email_logs' with GSIs created.")
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'ResourceInUseException':
+            logging.info("Table 'email_logs' already exists.")
+        else:
+            raise
+import os
+
+from dotenv import load_dotenv
+
+load_dotenv()
 import logging
 
 import boto3
 from botocore.exceptions import ClientError
 from fastapi import FastAPI
 
-DYNAMODB_ENDPOINT = "http://dynamodb:8000"
-REGION = "us-west-2"
+DYNAMODB_ENDPOINT_URL = os.getenv("DYNAMODB_ENDPOINT_URL", None)
+DYNAMODB_REGION = os.getenv("DYNAMODB_REGION", "us-east-1")
 
 dynamodb = boto3.resource(
     'dynamodb',
-    endpoint_url=DYNAMODB_ENDPOINT,
-    region_name=REGION,
+    endpoint_url=DYNAMODB_ENDPOINT_URL,
+    region_name=DYNAMODB_REGION,
     aws_access_key_id='dummy',
     aws_secret_access_key='dummy'
 )
@@ -140,6 +195,7 @@ def init_dynamodb():
     create_events_table()
     create_event_registrations_table()
     create_event_hosts_table()
+    create_email_logs_table()
     logging.info("DynamoDB tables initialized.")
     seed_all_tables()
 
