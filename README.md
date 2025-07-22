@@ -68,7 +68,7 @@ Returns a paginated list of users matching the provided filters. **No authentica
       "first_name": "Alice",
       "last_name": "Smith",
       "role": "host",
-      "company": "Acme",
+      "company": "Acme Corp",
       "job_title": "Manager",
       "city": "New York",
       "state": "NY",
@@ -104,7 +104,7 @@ Same as `/users/filter` (e.g., `company`, `job_title`, `city`, `state`, `events_
 ```sh
 curl -X POST "http://localhost:8000/email/send-to-filtered-users?company=Acme%20Corp&limit=5" \
      -H "Content-Type: application/json" \
-     -d '{"subject": "Hello!", "body": "Welcome to Acme."}' | jq
+     -d '{"subject": "Hello!", "body": "Welcome to Acme Corp."}' | jq
 ```
 
 #### Example Response
@@ -134,7 +134,7 @@ This endpoint uses FastAPI's `BackgroundTasks` to schedule the actual email send
   "recipient": "bob@example.com",
   "created_at": "2025-07-22T08:15:16.929429",
   "id": "9c4405b2-2475-4600-8402-ae2ce312524f",
-  "body": "Welcome to Acme ",
+  "body": "Welcome to Acme Corp.",
   "status": "sent"
 }
 ```
